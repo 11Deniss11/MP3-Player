@@ -35,10 +35,11 @@ public:
     void clearBuffer();
     void fillBuffer();
     void moveCursor(uint8_t page, uint8_t col);
-    void setPixel(uint8_t x, uint8_t y, bool colour);
-    void drawChar(uint8_t x, uint8_t y, bool isBig, char c);
-    void drawString(uint8_t x, uint8_t y, bool isBig, const char *str);
+    void setPixel(Vector2 coordinate, bool colour);
+    void drawChar(Vector2 coordinate, bool isBig, char c, bool occlude = false, Vector2 vert1 = Vector2(0, 0), Vector2 vert2 = Vector2(0, 0));
+    void drawString(Vector2 coordinate, bool isBig, const char *str, bool occlude = false, Vector2 vert1 = Vector2(0, 0), Vector2 vert2 = Vector2(0, 0));
     void stop();
+    bool edgeFunctionAboveZero(Vector2 a, Vector2 b, Vector2 c);
 
 private:
     void sendCommand(uint8_t command);

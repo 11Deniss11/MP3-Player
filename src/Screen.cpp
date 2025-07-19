@@ -7,6 +7,7 @@
 Screen::Screen(uint8_t address) : i2cAddress(address)
 {
     Wire.begin();
+    Wire.setClock(400000); // Set I2C clock to 400kHz
 }
 
 // Send command to SSD1306
@@ -92,23 +93,23 @@ void Screen::fillBuffer()
 }
 
 // Set colour of pixel
-void Screen::setPixel(uint8_t x, uint8_t y, bool colour)
+void Screen::setPixel(Vector2 coordinate, bool colour)
 {
-    if (x >= SCREEN_WIDTH || y >= SCREEN_HEIGHT)
+    if (coordinate.x >= SCREEN_WIDTH || coordinate.y >= SCREEN_HEIGHT)
     {
         return;
     }
     if (colour)
     {
-        screenBuffer[y / 8][x] |= (1 << (y % 8));
+        screenBuffer[coordinate.y / 8][coordinate.x] |= (1 << (coordinate.y % 8));
     }
     else
     {
-        screenBuffer[y / 8][x] &= ~(1 << (y % 8));
+        screenBuffer[coordinate.y / 8][coordinate.x] &= ~(1 << (coordinate.y % 8));
     }
 }
 
-void Screen::drawString(uint8_t x, uint8_t y, bool isBig, const char *str)
+void Screen::drawString(Vector2 coordinate, bool isBig, const char *str, bool occlude, Vector2 vert1, Vector2 vert2)
 {
     const GFXfont *font = isBig ? (const GFXfont *)&Quantico_Regular16pt7b : (const GFXfont *)&Quantico_Regular7pt7b;
 
@@ -122,22 +123,30 @@ void Screen::drawString(uint8_t x, uint8_t y, bool isBig, const char *str)
         {
             continue; // Skip characters not in font
         }
-        if (x >= SCREEN_WIDTH - 20 && !isBig)
+        if (coordinate.x >= SCREEN_WIDTH - 20 && !isBig)
         {
             for (int i = 0; i < 3; i++)
             {
-                drawChar(x, y, isBig, '.');
-                x += pgm_read_byte(&font->glyph['.' - first].xAdvance);
+                drawChar(coordinate, isBig, '.', occlude, vert1, vert2);
+                coordinate.x += pgm_read_byte(&font->glyph['.' - first].xAdvance);
             }
             return;
         }
-        drawChar(x, y, isBig, c);
-        x += pgm_read_byte(&font->glyph[c - first].xAdvance) * 1.2; // Move cursor to the right by the width of the character
+        if (occlude)
+        {
+            if (coordinate.x < vert2.x)
+                drawChar(coordinate, isBig, c, occlude, vert1, vert2);
+        }
+        else
+        {
+            drawChar(coordinate, isBig, c);
+        }
+        coordinate.x += pgm_read_byte(&font->glyph[c - first].xAdvance) * (isBig ? 1.2 : 1); // Move cursor to the right by the width of the character
     }
 }
 
 // https://rop.nl/truetype2gfx/ my beloved
-void Screen::drawChar(uint8_t x, uint8_t y, bool isBig, char c)
+void Screen::drawChar(Vector2 coordinate, bool isBig, char c, bool occlude, Vector2 vert1, Vector2 vert2)
 {
     const GFXfont *font = isBig ? (const GFXfont *)&Quantico_Regular16pt7b : (const GFXfont *)&Quantico_Regular7pt7b;
 
@@ -159,14 +168,6 @@ void Screen::drawChar(uint8_t x, uint8_t y, bool isBig, char c)
     int8_t xo = pgm_read_byte(&glyph->xOffset);
     int8_t yo = pgm_read_byte(&glyph->yOffset);
 
-    if (h == 0)
-    {
-        digitalWrite(LED_BUILTIN, HIGH);
-        delay(1000);
-        digitalWrite(LED_BUILTIN, LOW);
-        return;
-    }
-
     const uint8_t *bitmap = (const uint8_t *)pgm_read_ptr(&font->bitmap);
     uint8_t bits = 0, bit = 0;
     for (uint8_t yy = 0; yy < h; yy++)
@@ -177,10 +178,22 @@ void Screen::drawChar(uint8_t x, uint8_t y, bool isBig, char c)
                 bits = pgm_read_byte(&bitmap[bo++]);
             if (bits & 0x80)
             {
-                int16_t px = x + xo + xx;
-                int16_t py = y + yo + yy;
+                int16_t px = coordinate.x + xo + xx;
+                int16_t py = coordinate.y + yo + yy;
                 if (px >= 0 && px < SCREEN_WIDTH && py >= 0 && py < SCREEN_HEIGHT)
-                    setPixel(px, py, true);
+                {
+                    if (occlude)
+                    {
+                        if (edgeFunctionAboveZero(vert1, vert2, Vector2(px, py)))
+                        {
+                            setPixel(Vector2(px, py), true);
+                        }
+                    }
+                    else
+                    {
+                        setPixel(Vector2(px, py), true);
+                    }
+                }
             }
             bits <<= 1;
         }
@@ -198,3 +211,13 @@ void Screen::stop()
     Wire.write(0xA5); // Entire display ON, ignore RAM content
     Wire.endTransmission();
 }
+
+// Check if a point is below a linear line
+bool Screen::edgeFunctionAboveZero(Vector2 a, Vector2 b, Vector2 c)
+{
+    if (a.x == b.x && a.y == b.y)
+    {
+        return false;
+    }
+    return ((b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x) >= 0);
+} // point is within shape if it's within all edges

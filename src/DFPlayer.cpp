@@ -55,6 +55,41 @@ void DFPlayer::setVolume(int pVolume)
     volume = pVolume;
 }
 
+int DFPlayer::getVolume()
+{
+    return volume;
+}
+
+int DFPlayer::getCurrentTrack()
+{
+    execute_CMD(0x4B, 0, 0); // Query current track
+    if (waitUntilAvailable())
+    {
+        delay(50);
+        byte response[10];
+        for (byte i = 0; i < 10; i++)
+        {
+            response[i] = Serial.read();
+        }
+        // Check if the response is valid
+        if (response[0] == Start_Byte && response[1] == Version_Byte && response[2] == Command_Length &&
+            response[3] == 0x4B && response[4] == Acknowledge && response[9] == End_Byte)
+        {
+            return (response[6] << 8) | response[7]; // Combine high and low byte
+        }
+    }
+}
+
+bool DFPlayer::waitUntilAvailable()
+{
+    unsigned long startTime = millis();
+    while (!Serial.available() && millis() - startTime < 300)
+    {
+        // Wait for data to be available
+    }
+    return Serial.available() > 0;
+}
+
 void DFPlayer::execute_CMD(byte CMD, byte Par1, byte Par2)
 {
     unsigned long timeSinceLastCommand = millis() - lastCommandTime;

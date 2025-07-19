@@ -24,11 +24,14 @@ public:
     void playPrevious();
     void increaseVolume() { setVolume(volume + 1); }
     void decreaseVolume() { setVolume(volume - 1); }
+    int getVolume();
+    int getCurrentTrack();
 
 private:
     void pause();
     void play();
     void setVolume(int volume);
+    bool waitUntilAvailable();
     void execute_CMD(byte CMD, byte Par1, byte Par2);
 
     // SoftwareSerial dFPlayerSerial;

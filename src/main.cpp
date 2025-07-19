@@ -24,14 +24,35 @@ void setup()
 
     screen.init();
     screen.clearBuffer();
-    screen.drawString(6, 24, true, "HELLO!");
     screen.drawBufferToScreen();
 
     dFPlayer.init();
+
+    int x = 5;
+    while (x < SCREEN_WIDTH)
+    {
+        screen.drawString(Vector2(6, 24), true, "HELLO!", true, Vector2(x, 0), Vector2(x + 20, 31));
+        screen.drawBufferToScreen();
+        x += 30;
+    }
+
+    delay(500);
+
+    while (digitalRead(button_previous) && digitalRead(button_next) && digitalRead(button_pause) && digitalRead(button_volume_up) && digitalRead(button_volume_down))
+    {
+        delay(100);
+    }
+    screen.clearBuffer();
+    screen.drawBufferToScreen();
 }
 
 void loop()
 {
+    String trackNumStr = String(dFPlayer.getCurrentTrack());
+    screen.clearBuffer();
+    screen.drawString(Vector2(2, 11), false, trackNumStr.c_str());
+    screen.drawBufferToScreen();
+
     if (!digitalRead(button_previous))
     {
         dFPlayer.playPrevious();
@@ -41,24 +62,24 @@ void loop()
     if (!digitalRead(button_next))
     {
         dFPlayer.playNext();
-        delay(200); // Debounce delay
+        delay(200);
     }
 
     if (!digitalRead(button_pause))
     {
         dFPlayer.togglePause();
-        delay(500); // Debounce delay
+        delay(500);
     }
 
     if (!digitalRead(button_volume_up))
     {
         dFPlayer.increaseVolume();
-        delay(200); // Debounce delay
+        delay(200);
     }
 
     if (!digitalRead(button_volume_down))
     {
         dFPlayer.decreaseVolume();
-        delay(200); // Debounce delay
+        delay(200);
     }
 }
